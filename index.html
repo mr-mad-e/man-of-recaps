@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css"
+      rel="stylesheet"
+    />
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <v-app>
+        <v-main>
+          <v-container>
+            <template v-for="(genre, index) in genres">
+              <template v-if="genre.movies.length">
+                <v-card-title> {{genre.name}} </v-card-title>
+
+                <v-slide-group>
+                  <v-slide-item class="ml-2" v-for="(movie, index) in genre.movies" :key="index">
+                    <v-card @click="onClick(movie, genre)" width="200">
+                      <v-img
+                        contain
+                        aspect-ratio="0.75"
+                        :src="`https://image.tmdb.org/t/p/w500${movie.poster_path}`"
+                      ></v-img>
+                      <!-- <v-card-subtitle> {{movie.title}} </v-card-subtitle> -->
+                    </v-card>
+                  </v-slide-item>
+                </v-slide-group>
+              </template>
+            </template>
+
+            <v-dialog v-model="dialog" fullscreen>
+              <v-card>
+                <v-card-title>
+                  <v-icon @click="dialog=false">mdi-arrow-left</v-icon>
+                </v-card-title>
+
+                <v-responsive aspect-ratio="1.77">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    :src="`https://www.youtube-nocookie.com/embed/${season.comment}`"
+                    title="YouTube video player"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen
+                  ></iframe>
+                </v-responsive>
+
+                <v-card-title class="mb-4"> {{movie.title}} </v-card-title>
+
+                <v-card-subtitle> {{movie.overview}} </v-card-subtitle>
+
+                <template v-if="movie.seasons && movie.seasons.length">
+                  <v-card-title class="mb-4"> Seasons </v-card-title>
+                  <v-card-text>
+                    <v-slide-group>
+                      <template v-for="(item, index) in movie.seasons">
+                        <v-slide-item v-if="item.season_number" class="ml-2" :key="index">
+                          <v-card :disabled="!item.comment" @click="onClickasdad(item)" width="200">
+                            <v-img
+                              contain
+                              aspect-ratio="0.75"
+                              :src="`https://image.tmdb.org/t/p/w500${item.poster_path}`"
+                            ></v-img>
+                            <!-- <v-card-subtitle> {{item.title}} </v-card-subtitle> -->
+                          </v-card>
+                        </v-slide-item>
+                      </template>
+                    </v-slide-group>
+                  </v-card-text>
+                </template>
+
+                <template v-if="collection.name">
+                  <v-card-title class="mb-4"> More from {{collection.name}} </v-card-title>
+                  <v-card-text>
+                    <v-slide-group>
+                      <template v-for="(item, index) in collection.parts">
+                        <v-slide-item v-if="item.id != movie.id" class="ml-2" :key="index">
+                          <v-card :disabled="!hasComment(item)" @click="onClick(item)" width="200">
+                            <v-img
+                              contain
+                              aspect-ratio="0.75"
+                              :src="`https://image.tmdb.org/t/p/w500${item.poster_path}`"
+                            ></v-img>
+                            <!-- <v-card-subtitle> {{item.title}} </v-card-subtitle> -->
+                          </v-card>
+                        </v-slide-item>
+                      </template>
+                    </v-slide-group>
+                  </v-card-text>
+                </template>
+
+                <v-card-title class="mb-4"> More Like This </v-card-title>
+                <v-card-text>
+                  <v-slide-group>
+                    <template v-for="(item, index) in getGenreMovies()">
+                      <v-slide-item v-if="item.id != movie.id" class="ml-2" :key="index">
+                        <v-card @click="onClick(item, genre)" width="200">
+                          <v-img
+                            contain
+                            aspect-ratio="0.75"
+                            :src="`https://image.tmdb.org/t/p/w500${item.poster_path}`"
+                          ></v-img>
+                          <!-- <v-card-subtitle> {{item.title}} </v-card-subtitle> -->
+                        </v-card>
+                      </v-slide-item>
+                    </template>
+                  </v-slide-group>
+                </v-card-text>
+              </v-card>
+            </v-dialog>
+          </v-container>
+        </v-main>
+      </v-app>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+    <script>
+      new Vue({
+        el: '#app',
+        vuetify: new Vuetify(),
+        data() {
+          return {
+            dialog: false,
+            movie: {},
+            genres: {},
+            season: {},
+            genre: {},
+            list: {},
+            collection: {},
+          };
+        },
+        mounted() {
+          this.getGenres();
+          this.getMovies();
+        },
+        methods: {
+          getGenreMovies() {
+            return (this.genre.movies || []).filter((movie) => {
+              return !(this.collection.parts || []).some((part) => part.id == movie.id);
+            });
+          },
+          hasComment(movie) {
+            return !!this.list.comments[`tv:${movie.id}`];
+          },
+          getComment(movie) {
+            const comment = this.list.comments[`tv:${movie.id}`] || '';
+
+            return comment.split('\n').map((item) => {
+              return item
+                .replace('https://www.youtube.com/watch?v=', '')
+                .replace('https://youtu.be/', '');
+            });
+          },
+          onClickasdad(season){
+            this.season = season;
+          },
+          onClick(movie, genre) {
+            this.movie = movie;
+            if (genre) {
+              this.genre = genre;
+              if (this.movie.media_type === 'tv') {
+                this.getSeasons();
+              } else {
+                this.getCollection();
+              }
+            }
+            this.dialog = true;
+            window.scrollTo(0, 0);
+            this.$forceUpdate();
+          },
+          async getSeasons() {
+            const movie = await fetch(
+              `https://api.themoviedb.org/3/tv/${this.movie.id}?api_key=ab1391e8e1261f84f32827552b3e3935`
+            ).then((response) => response.json());
+
+            const comments = this.getComment(this.movie);
+            this.movie.seasons = movie.seasons
+              .filter((x) => !!x.season_number)
+              .map((season, index) => {
+                season.comment = comments[index];
+                return season;
+              });
+
+            console.log();
+            this.$forceUpdate();
+          },
+          async getCollection() {
+            const movie = await fetch(
+              `https://api.themoviedb.org/3/movie/${this.movie.id}?api_key=ab1391e8e1261f84f32827552b3e3935`
+            ).then((response) => response.json());
+
+            if (movie.belongs_to_collection) {
+              this.collection = await fetch(
+                `https://api.themoviedb.org/3/collection/${movie.belongs_to_collection.id}?api_key=ab1391e8e1261f84f32827552b3e3935`
+              ).then((response) => response.json());
+            } else {
+              this.collection = {};
+            }
+
+            this.$forceUpdate();
+          },
+          async getGenres() {
+            const response = await fetch(
+              'https://api.themoviedb.org/3/genre/movie/list?api_key=ab1391e8e1261f84f32827552b3e3935'
+            ).then((response) => response.json());
+
+            response.genres.forEach((genre) => {
+              genre.movies = [];
+              this.genres[genre.id] = genre;
+            });
+          },
+          async getMovies() {
+            this.list = await fetch(
+              'https://api.themoviedb.org/4/list/7094776?api_key=ab1391e8e1261f84f32827552b3e3935'
+            ).then((response) => response.json());
+
+            this.list.results.forEach(async (movie) => {
+              movie.genre_ids.forEach((genre) => {
+                if (movie.media_type === 'tv') {
+                  this.genres[genre].movies.push(movie);
+                }
+              });
+            });
+
+            for (let index = 2; index < this.list.total_pages + 1; index++) {
+              const list = await fetch(
+                `https://api.themoviedb.org/4/list/7094776?api_key=ab1391e8e1261f84f32827552b3e3935&page=${index}`
+              ).then((response) => response.json());
+
+              list.results.forEach(async (movie) => {
+                movie.genre_ids.forEach((genre) => {
+                  if (movie.media_type === 'tv') {
+                    this.genres[genre].movies.push(movie);
+                  }
+                });
+              });
+            }
+
+            this.$forceUpdate();
+          },
+        },
+      });
+    </script>
+  </body>
+</html>
